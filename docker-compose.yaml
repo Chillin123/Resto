@@ -1,0 +1,29 @@
+  services:
+    postgres:
+      image: postgres:latest
+      container_name: postgres-container
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: 1234
+        POSTGRES_DB: resto
+      volumes:
+        - pgdata:/var/lib/postgresql/data
+      ports:
+        - "5432:5432"
+
+    resto:
+      image: agatsumezenitsu/resto:latest
+      ports:
+        - "80:8080"
+      environment:
+        - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/resto
+        - SPRING_DATASOURCE_USERNAME=postgres
+        - SPRING_DATASOURCE_PASSWORD=1234
+        - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+        - SPRING_JPA_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+      depends_on:
+        - postgres
+      restart: unless-stopped
+
+  volumes:
+    pgdata:
