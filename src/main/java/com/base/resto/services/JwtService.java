@@ -1,16 +1,16 @@
 package com.base.resto.services;
 
+import com.base.resto.enums.Role;
+import com.base.resto.models.CustomUserDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
-import java.security.Signature;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,10 +26,13 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<String, Object>(), userDetails);
+    public String generateToken(CustomUserDetails userDetails) {
+        Map<String, Object> extraClaims = new HashMap<String, Object>();
+        extraClaims.put("role", userDetails.getRole());
+
+        return generateToken(extraClaims, userDetails);
     }
-    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+    public String generateToken(Map<String, Object> extraClaims, CustomUserDetails userDetails) {
         return Jwts
                 .builder()
                 .setClaims(extraClaims)
@@ -41,9 +44,9 @@ public class JwtService {
 
     }
 
-    public boolean validateToken(String token, UserDetails userDetails) {
+    public boolean validateToken(String token, CustomUserDetails customUserDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        return (username.equals(customUserDetails.getUsername()) && !isTokenExpired(token));
     }
 
     private boolean isTokenExpired(String token) {
@@ -54,6 +57,15 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
+    public Role extractRole(String token) {
+        final  Claims claims = extractClaims(token);
+        String roleString = (String) claims.get("role");
+        if(roleString != null) {
+            return Role.valueOf(roleString);
+        }else{
+            return null;
+        }
+    }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final  Claims claims = extractClaims(token);

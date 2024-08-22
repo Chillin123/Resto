@@ -1,5 +1,9 @@
 package com.base.resto.configs;
 
+import com.base.resto.enums.AuthorityLevel;
+import com.base.resto.enums.Role;
+import com.base.resto.models.CustomUserDetails;
+import com.base.resto.services.CustomUserDetailsService;
 import com.base.resto.services.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -9,20 +13,19 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 
 @Component
-@RequiredArgsConstructor //Creates constructor with any final variable
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,@NonNull HttpServletResponse response,@NonNull FilterChain filterChain) throws ServletException, IOException {
@@ -33,12 +36,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             jwt = authorizationHeader.substring(7);
             phone = jwtService.extractUsername(jwt);
             if(phone != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(phone);
-                if(jwtService.validateToken(jwt, userDetails)) {
+                CustomUserDetails customUserDetails = customUserDetailsService.loadUserByUsername(phone);
+                if(jwtService.validateToken(jwt, customUserDetails)) {
+                    if(!isAuthorized(jwt, request)) {
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Insufficient authority for the request");
+                        return;
+                    }
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userDetails,
+                            customUserDetails,
                             null,
-                            userDetails.getAuthorities()
+                            customUserDetails.getAuthorities()
                     );
                     authentication.setDetails(
                             new WebAuthenticationDetails(request)
@@ -49,7 +56,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         }else{
             filterChain.doFilter(request, response);
-            return;
         }
+    }
+
+    protected boolean isAuthorized(String jwt, @NonNull HttpServletRequest request) {
+        Role role = jwtService.extractRole(jwt);
+        role = role == null ? Role.CUSTOMER : role;
+        String requestUri = request.getRequestURI();
+        AuthorityLevel requiredAuthority = EndpointSecurityConfig.getRequiredAuthorityForEndpoint(requestUri);
+        System.out.println(requiredAuthority);
+        System.out.println(role);
+        return role == Role.ADMIN || (role == Role.EMPLOYEE && requiredAuthority != AuthorityLevel.ADMIN)
+                || (role == Role.CUSTOMER && requiredAuthority == AuthorityLevel.CUSTOMER);
     }
 }

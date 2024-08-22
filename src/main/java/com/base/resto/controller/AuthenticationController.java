@@ -5,6 +5,7 @@ import com.base.resto.dto.request.RegisterRequest;
 import com.base.resto.dto.response.AuthenticationResponse;
 import com.base.resto.services.AuthenticationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,7 +21,11 @@ public class AuthenticationController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthenticationResponse> register(@RequestBody RegisterRequest registerRequest) {
-        return ResponseEntity.ok(authenticationService.register(registerRequest));
+        try {
+            return ResponseEntity.ok(authenticationService.register(registerRequest));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(AuthenticationResponse.builder().message(e.getMessage()).build());
+        }
     }
 
     @PostMapping("/authenticate")
