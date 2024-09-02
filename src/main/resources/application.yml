@@ -19,3 +19,11 @@ spring:
 
 jwt:
   secret: 028ac0ec3b01279ee082267744f15fba3de0413dfc5767850f2583adf815c435
+
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
+        web:
+          socket: DEBUG
